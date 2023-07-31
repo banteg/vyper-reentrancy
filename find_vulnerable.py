@@ -64,7 +64,7 @@ def find_closing_paren(text):
 
 
 def could_be_vulnerable(source):
-    if "@payable" in source:
+    if "@payable" in source and '@nonreentrant' in source:
         print("[red]• has payable")
         return True
 
@@ -91,7 +91,7 @@ def could_be_vulnerable(source):
                 "APPROVE",
                 "TRANSFER",
                 # known method id probably indicates a safe use
-                "method_id",
+                "method_id(",
             ]
             if not any(call in inner for call in safe_calls):
                 print("[red]• no safe call", inner)
