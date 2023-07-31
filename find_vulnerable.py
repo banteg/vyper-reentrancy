@@ -97,7 +97,7 @@ def could_be_vulnerable(source):
                 print("[red]• no safe call", inner)
                 vulnerable_calls.append(inner)
 
-        return bool(vulnerable_calls)
+        return bool(vulnerable_calls) and '@nonreentrant' in source
     else:
         return False
 
