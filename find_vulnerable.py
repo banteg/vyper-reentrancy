@@ -11,9 +11,9 @@ ETHERSCAN_API_URLS = {
     "avax": "https://api.snowtrace.io/api",
     "celo": "https://api.celoscan.io/api",
     "ethereum": "https://api.etherscan.io/api",
-    "ftm": "https://api.ftmscan.io/api",
+    "ftm": "https://api.ftmscan.com/api",
     "gnosis": "https://api.gnosisscan.io/api",
-    "moonbeam": "https://api.moonscan.io/api",
+    "moonbeam": "https://api-moonbeam.moonscan.io/api",
     "op": "https://api-optimistic.etherscan.io/api",
     "poly": "https://api.polygonscan.com/api",
 }
