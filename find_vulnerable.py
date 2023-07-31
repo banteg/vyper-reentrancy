@@ -1,10 +1,12 @@
 import csv
 import os
+import re
 from itertools import cycle
 from pathlib import Path
-import re
+from rich import print
 
 import requests
+from diskcache import Cache
 
 VULNERABLE_VERSIONS = {"0.2.15", "0.2.16", "0.3.0"}
 ETHERSCAN_API_URLS = {
@@ -33,8 +35,10 @@ api_keys = {
     network: cycle(os.environ[key].split(","))
     for network, key in ETHERSCAN_API_VARS.items()
 }
+cache = Cache(".cache")
 
 
+@cache.memoize()
 def get_source(network, address):
     params = {
         "module": "contract",
@@ -61,7 +65,7 @@ def find_closing_paren(text):
 
 def could_be_vulnerable(source):
     if "@payable" in source:
-        print('has payable')
+        print("[red]• has payable")
         return True
 
     if "raw_call" in source:
@@ -71,12 +75,26 @@ def could_be_vulnerable(source):
             inner = find_closing_paren(source[match.start() :])
             print(inner)
             safe_calls = [
+                # erc20 methods using raw call for handing a missing return value
                 "transfer(address,uint256)",
                 "transferFrom(address,address,uint256)",
                 "approve(address,uint256)",
+                # appears in hundred finance contracts
+                "deposit_sig",
+                "withdraw_sig",
+                "reward_sigs",
+                # appears in curve registry
+                "rate_method_id",
+                # appears in `_uint_to_string`
+                "IDENTITY_PRECOMPILE",
+                # appears in unaagi vault
+                "APPROVE",
+                "TRANSFER",
+                # known method id probably indicates a safe use
+                "method_id",
             ]
             if not any(call in inner for call in safe_calls):
-                print('no safe call', inner)
+                print("[red]• no safe call", inner)
                 vulnerable_calls.append(inner)
 
         return bool(vulnerable_calls)
@@ -97,24 +115,21 @@ def main():
             if version not in VULNERABLE_VERSIONS:
                 continue
 
+            print(f"\n{network} {address} {version}")
             contract_path = network_dir / f"{address}.vy"
-            if contract_path.exists():
-                source = contract_path.read_text()
-                if not could_be_vulnerable(source):
-                    print('narrowed down to non vulnerable')
-                    contract_path.unlink()
-                continue
 
-            print(network, address, version)
             resp = get_source(network, address)
             source = resp["result"][0]["SourceCode"]
             version = resp["result"][0]["CompilerVersion"].split(":")[-1]
 
             if could_be_vulnerable(source):
                 contract_path.write_text(source)
-                print("could be vulnerable, saved")
+                print("[bold red]• could be vulnerable, saved")
             else:
-                print("contract looks safe")
+                print("[green]• contract looks safe")
+                if contract_path.exists():
+                    print("[green]• narrowed down to non vulnerable")
+                    contract_path.unlink()
 
 
 if __name__ == "__main__":
