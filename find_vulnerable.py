@@ -2,6 +2,7 @@ import csv
 import os
 from itertools import cycle
 from pathlib import Path
+import re
 
 import requests
 
@@ -46,8 +47,41 @@ def get_source(network, address):
     return resp.json()
 
 
+def find_closing_paren(text):
+    stack = []
+    sclices = []
+    for i, char in enumerate(text):
+        if char == "(":
+            stack.append(i)
+        if char == ")":
+            sclices.append(slice(stack.pop(), i + 1))
+            if not stack:
+                return text[sclices[-1]]
+
+
 def could_be_vulnerable(source):
-    return "raw_call" in source or "@payable" in source
+    if "@payable" in source:
+        print('has payable')
+        return True
+
+    if "raw_call" in source:
+        vulnerable_calls = []
+
+        for match in re.finditer("raw_call", source):
+            inner = find_closing_paren(source[match.start() :])
+            print(inner)
+            safe_calls = [
+                "transfer(address,uint256)",
+                "transferFrom(address,address,uint256)",
+                "approve(address,uint256)",
+            ]
+            if not any(call in inner for call in safe_calls):
+                print('no safe call', inner)
+                vulnerable_calls.append(inner)
+
+        return bool(vulnerable_calls)
+    else:
+        return False
 
 
 def main():
@@ -65,6 +99,10 @@ def main():
 
             contract_path = network_dir / f"{address}.vy"
             if contract_path.exists():
+                source = contract_path.read_text()
+                if not could_be_vulnerable(source):
+                    print('narrowed down to non vulnerable')
+                    contract_path.unlink()
                 continue
 
             print(network, address, version)
