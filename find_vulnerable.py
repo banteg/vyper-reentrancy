@@ -49,14 +49,14 @@ def get_source(network, address):
 
 def find_closing_paren(text):
     stack = []
-    sclices = []
+    slices = []
     for i, char in enumerate(text):
         if char == "(":
             stack.append(i)
         if char == ")":
-            sclices.append(slice(stack.pop(), i + 1))
+            slices.append(slice(stack.pop(), i + 1))
             if not stack:
-                return text[sclices[-1]]
+                return text[slices[-1]]
 
 
 def could_be_vulnerable(source):
