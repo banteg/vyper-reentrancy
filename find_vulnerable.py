@@ -1,12 +1,13 @@
 import csv
 import os
 import re
+from collections import Counter
 from itertools import cycle
 from pathlib import Path
-from rich import print
 
 import requests
 from diskcache import Cache
+from rich import print
 
 VULNERABLE_VERSIONS = {"0.2.15", "0.2.16", "0.3.0"}
 ETHERSCAN_API_URLS = {
@@ -64,7 +65,10 @@ def find_closing_paren(text):
 
 
 def could_be_vulnerable(source):
-    if "@payable" in source and '@nonreentrant' in source:
+    nonreentrants = Counter(re.findall(r'@nonreentrant\(.*\)', source))
+    multiple_nonreentrants_with_same_key = nonreentrants and nonreentrants.most_common()[0][1] > 1
+
+    if "@payable" in source and multiple_nonreentrants_with_same_key:
         print("[red]• has payable")
         return True
 
@@ -97,7 +101,7 @@ def could_be_vulnerable(source):
                 print("[red]• no safe call", inner)
                 vulnerable_calls.append(inner)
 
-        return bool(vulnerable_calls) and '@nonreentrant' in source
+        return bool(vulnerable_calls) and multiple_nonreentrants_with_same_key
     else:
         return False
 
